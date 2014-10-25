@@ -164,7 +164,7 @@ module Gntshr = struct
   let free_list_waiters = Lwt_sequence.create ()
 
   let put r =
-    Profile.label "Gntshr.put";
+    Profile.note_increase "gntref" (-1);
     Queue.push r free_list;
     match Lwt_sequence.take_opt_l free_list_waiters with
     | None -> ()
@@ -173,7 +173,6 @@ module Gntshr = struct
   let num_free_grants () = Queue.length free_list
 
   let rec get () =
-    Profile.label "Gntshr.get";
     if gntshr_allocates
     then fail Interface_unavailable
     else match Queue.is_empty free_list with
@@ -184,6 +183,7 @@ module Gntshr = struct
         Lwt.on_cancel th (fun () -> Lwt_sequence.remove node);
         th >> get ()
       | false ->
+        Profile.note_increase "gntref" (1);
         return (Queue.pop free_list)
 
   let get_n num =
